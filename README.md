@@ -27,30 +27,37 @@ Try the deployed application:
 - Traffic-summary CSV download
 - Interval-count CSV download
 - Streamlit web interface
-- Public deployment using Streamlit Community Cloud
+- Public deployment through Streamlit Community Cloud
 
 ## Application Interface
 
-The Streamlit application is divided into three main sections:
+The Streamlit application is divided into three main sections.
 
 ### Upload & Analyze
 
+This section allows the user to:
+
 - Upload a traffic video
 - View video metadata
-- Configure the analysis settings
+- Review the selected analysis settings
 - Run the complete traffic-video analysis
 
 ### Results Dashboard
 
-- View estimated traffic crossings
-- View upward and downward counts
-- Play and download the processed video
-- Inspect crossing-event records
-- View interval-based traffic analysis
-- View Matplotlib charts
-- Download CSV reports
+This section displays:
+
+- Estimated total crossings
+- Upward crossing count
+- Downward crossing count
+- Processed traffic video
+- Crossing-event records
+- Time-interval traffic analysis
+- Matplotlib charts
+- Video and CSV downloads
 
 ### Technical Preview
+
+This optional section allows the user to:
 
 - Inspect a selected video frame
 - Generate the foreground motion mask
@@ -65,7 +72,8 @@ The Streamlit application is divided into three main sections:
 - Pandas
 - Matplotlib
 - Streamlit
-- Git and GitHub
+- Git
+- GitHub
 - Streamlit Community Cloud
 
 ## Processing Pipeline
@@ -85,46 +93,76 @@ The Streamlit application is divided into three main sections:
 13. Store crossing events using Pandas.
 14. Group crossings into time intervals.
 15. Generate traffic charts using Matplotlib.
-16. Display and export results through Streamlit.
+16. Display and export the results through Streamlit.
 
 ## Detection and Tracking Method
 
 TrafficFlowCV does not use YOLO or another trained deep-learning detector.
 
-The system uses a classical computer-vision approach:
+The application uses a classical computer-vision approach:
 
 - OpenCV MOG2 for background subtraction
-- Thresholding and morphological operations for motion-mask cleaning
+- Thresholding for foreground extraction
+- Median filtering for noise reduction
+- Morphological opening and closing for mask cleaning
+- Dilation for connecting fragmented motion regions
 - Contour analysis for moving-region detection
 - Bounding-box centroids for object localization
 - A custom centroid tracker for assigning IDs
-- Euclidean distance for matching objects across consecutive frames
+- Euclidean distance for matching objects between consecutive frames
 
 The detected objects represent moving regions inside the road ROI. They are not semantically classified as cars, buses, trucks, or motorcycles.
 
+## Region of Interest
+
+ROI means Region of Interest.
+
+The application creates a polygonal roadway region and ignores motion outside that area. This helps reduce false detections from the sky, buildings, trees, sidewalks, and other irrelevant parts of the frame.
+
+## Counting-Line Method
+
+A horizontal counting line is placed inside the selected roadway ROI.
+
+For each tracked object, the application compares the previous and current centroid positions relative to the line.
+
+A crossing is recorded when:
+
+- A centroid moves from above the line to below the line
+- A centroid moves from below the line to above the line
+
+Each tracked ID is counted only once.
+
 ## Analysis Settings
 
-The application provides the following settings in the sidebar:
+The sidebar contains the following controls.
 
 ### Minimum Moving-Region Area
 
-Removes small motion regions that are likely to be noise.
+This setting removes small motion regions that are likely to be noise.
+
+A higher value removes more small regions, while a lower value allows smaller or more distant moving regions to be detected.
 
 ### Road ROI Starting Position
 
-Defines where the roadway Region of Interest begins vertically in the frame.
+This setting defines where the roadway Region of Interest begins vertically in the video frame.
+
+The percentage is measured from the top of the frame.
 
 ### Counting-Line Position
 
-Defines the horizontal line used to detect upward and downward crossings.
+This setting defines the vertical position of the horizontal counting line.
+
+The percentage is measured from the top of the processed frame.
 
 ### Background-Learning Frames
 
-Defines how many initial frames are used to learn the stationary background.
+This setting determines how many initial frames are used to learn the stationary background.
+
+These initial frames are not used for counting.
 
 ### Analytics Time Interval
 
-Defines the interval duration used for traffic-summary tables and charts.
+This setting determines the duration used to group crossing events into traffic-analysis intervals.
 
 ## Project Structure
 
@@ -151,39 +189,85 @@ TrafficFlowCV/
 
 ### `app.py`
 
-Provides the Streamlit user interface, sidebar settings, application tabs, processing controls, result display, and downloads.
+Provides the Streamlit user interface, sidebar settings, application tabs, processing controls, result display, charts, and downloads.
 
 ### `video_processor.py`
 
-Saves uploaded videos, extracts metadata, and reads individual frames.
+Handles:
+
+- Saving uploaded videos
+- Extracting video metadata
+- Reading individual video frames
 
 ### `motion_detector.py`
 
-Performs background subtraction and motion-mask cleaning.
+Handles:
+
+- MOG2 background subtraction
+- Foreground thresholding
+- Median filtering
+- Morphological opening
+- Morphological closing
+- Dilation
+- Removal of small motion regions
 
 ### `object_detector.py`
 
-Finds contours, filters moving regions, and creates bounding boxes and centroids.
+Handles:
+
+- Contour detection
+- Moving-region filtering
+- Bounding-box creation
+- Centroid calculation
+- Bounding-box annotation
 
 ### `centroid_tracker.py`
 
-Matches centroids between consecutive frames and assigns tracking IDs.
+Handles:
+
+- Centroid-distance calculation
+- Matching objects between consecutive frames
+- Tracking-ID assignment
+- Temporary object disappearance
+- Lost-object deregistration
 
 ### `tracking_processor.py`
 
-Generates a technical tracking preview for a selected portion of the video.
+Generates a technical tracking preview for a selected section of the video.
 
 ### `vehicle_counter.py`
 
-Detects upward and downward counting-line crossings and prevents duplicate counting for the same tracked ID.
+Handles:
+
+- Determining whether an object is above or below the counting line
+- Detecting upward and downward crossings
+- Preventing duplicate counting
+- Creating crossing-event records
 
 ### `video_tracker.py`
 
-Combines ROI filtering, motion detection, object detection, centroid tracking, crossing detection, annotation, and output-video generation.
+Combines:
+
+- Video reading
+- ROI creation
+- Background subtraction
+- Motion-mask cleaning
+- Moving-region detection
+- Centroid tracking
+- Counting-line crossing detection
+- Frame annotation
+- Output-video generation
 
 ### `analytics.py`
 
-Uses Pandas and NumPy to prepare traffic tables and summary statistics, and Matplotlib to generate traffic charts.
+Uses Pandas, NumPy, and Matplotlib to:
+
+- Build the crossing-event table
+- Group events into time intervals
+- Calculate traffic-summary statistics
+- Identify the peak traffic interval
+- Generate traffic charts
+- Prepare downloadable CSV reports
 
 ## Run Locally
 
@@ -206,6 +290,12 @@ On Windows PowerShell:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
+```
+
+On Windows Command Prompt:
+
+```bat
+venv\Scripts\activate
 ```
 
 ### 4. Install the dependencies
@@ -236,89 +326,7 @@ For better results, use videos with:
 - Stable lighting
 - Limited vehicle overlap
 - Limited camera vibration
-- Vehicles moving through the counting-line area
-- Short duration
-- MP4 format
-- Resolution of 720p or lower
-
-## Recommended and motion-mask cleaning.
-
-### `object_detector.py`
-
-Finds contours, filters moving regions, and creates bounding boxes and centroids.
-
-### `centroid_tracker.py`
-
-Matches centroids between consecutive frames and assigns tracking IDs.
-
-### `tracking_processor.py`
-
-Generates a technical tracking preview for a selected portion of the video.
-
-### `vehicle_counter.py`
-
-Detects upward and downward counting-line crossings and prevents duplicate counting for the same tracked ID.
-
-### `video_tracker.py`
-
-Combines ROI filtering, motion detection, object detection, centroid tracking, crossing detection, annotation, and output-video generation.
-
-### `analytics.py`
-
-Uses Pandas and NumPy to prepare traffic tables and summary statistics, and Matplotlib to generate traffic charts.
-
-## Run Locally
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/smabdullahaljobairraihan/TrafficFlowCV.git
-cd TrafficFlowCV
-```
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv venv
-```
-
-### 3. Activate the virtual environment
-
-On Windows PowerShell:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### 4. Install the dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 5. Run the application
-
-```bash
-python -m streamlit run app.py
-```
-
-Open the local address displayed in the terminal, usually:
-
-```text
-http://localhost:8501
-```
-
-## Recommended Video Conditions
-
-For better results, use videos with:
-
-- A fixed camera
-- A clearly visible roadway
-- Moderate traffic density
-- Stable lighting
-- Limited vehicle overlap
-- Limited camera vibration
-- Vehicles moving through the counting-line area
+- Vehicles crossing the selected counting line
 - Short duration
 - MP4 format
 - Resolution of 720p or lower
@@ -327,87 +335,47 @@ For better results, use videos with:
 
 ```text
 Minimum moving-region area: 500
-Road ROI Initial Settings
-
-```text
-Minimum moving-region area: 500
 Road ROI starting position: 35%
-Counting-line position: 70%
-Background-learning frames starting position: 35%
 Counting-line position: 70%
 Background-learning frames: 90
 Analytics interval: 5 seconds
 ```
 
-The: 90
-Analytics interval: 5 seconds
-```
-
-The ideal settings may vary depending ideal settings may vary depending on the camera position, road geometry, traffic density, on the camera position, road geometry, traffic density, and video resolution.
-
-## Outputs
-
-The application can and video resolution.
+The ideal settings may vary depending on the camera position, road geometry, traffic density, lighting conditions, and video resolution.
 
 ## Outputs
 
 The application can generate:
 
 - Annotated processed video
-- Estimated generate:
-
-- Annotated processed video
 - Estimated total crossing count
-- Up total crossing count
 - Upward crossing count
 - Downward crossing count
 - Crossing-event table
 - Time-interval traffic table
-- Cward crossing count
-- Downward crossing count
-- Crossing-event table
-- Time-interval traffic table
-- Cumulative traffic chart
-- Direction-comparison chart
--umulative traffic chart
-- Direction-comparison chart
+- Crossings-by-interval bar chart
+- Cumulative traffic-count line chart
+- Direction-comparison bar chart
 - Traffic-summary CSV
-- Crossing-record CSV
-- Interval-count CSV
-
-## Traffic-summary CSV
 - Crossing-record CSV
 - Interval-count CSV
 
 ## Limitations
 
-TrafficFlowCV uses classical motion detection instead Limitations
-
 TrafficFlowCV uses classical motion detection instead of a trained vehicle detector.
 
 As a result:
 
-- Moving of a trained vehicle detector.
-
-As a result:
-
 - Moving shadows may be detected.
-- Nearby vehicles may merge into one region.
-- One vehicle shadows may be detected.
-- Nearby vehicles may merge into one region.
+- Nearby vehicles may merge into one moving region.
 - One vehicle may be divided into multiple regions.
-- Occlusion may be divided into multiple regions.
-- Occlusion may cause tracking IDs may cause tracking IDs to be lost.
-- A lost vehicle may receive a new ID.
-- to be lost.
-- A lost vehicle may receive a new ID.
-- Camera movement may produce Camera movement may produce false detections.
-- Dense traffic can false detections.
+- Occlusion may cause tracking IDs to be lost.
+- A lost vehicle may receive a new tracking ID.
+- Camera movement may produce false detections.
 - Dense traffic can reduce tracking accuracy.
-- The system does not identify reduce tracking accuracy.
-- The system does not identify vehicle classes.
-
-Therefore, the generated counts should be treated as experimental traffic-flow vehicle classes.
+- The system does not classify vehicle types.
+- The same vehicle may occasionally receive more than one tracking ID.
+- Large or high-resolution videos may require significant processing time.
 
 Therefore, the generated counts should be treated as experimental traffic-flow estimates rather than verified ground-truth vehicle counts.
 
@@ -416,39 +384,19 @@ Therefore, the generated counts should be treated as experimental traffic-flow e
 - YOLO-based vehicle detection
 - ByteTrack or BoT-SORT integration
 - Vehicle-class identification
-- Lane-specific estimates rather than verified ground-truth vehicle counts.
-
-## Future Improvements
-
-- YOLO-based vehicle detection
-- ByteTrack or vehicle counting
-- Perspective-aware detection thresholds
-- Improved shadow removal
-- Better BoT-SORT integration
-- Vehicle-class identification
 - Lane-specific vehicle counting
-- Perspective-aware detection thresholds
-- Improved shadow removal
-- Better occlusion handling
-- User-defined polygonal occlusion handling
 - User-defined polygonal ROI
-- User-defined counting-line ROI
 - User-defined counting-line endpoints
-- Database endpoints
+- Improved shadow removal
+- Improved occlusion handling
+- Perspective-aware detection thresholds
+- Automatic parameter selection
 - Database-based result storage
 - Large-video processing support
 
 ## Project Purpose
 
-This project was-based result storage
-- Large-video processing support
-
-## Project Purpose
-
-This project was developed as a practical demonstration of:
-
-- Python modular programming
-- Classical developed as a practical demonstration of:
+This project demonstrates practical skills in:
 
 - Python modular programming
 - Classical computer vision
@@ -456,13 +404,13 @@ This project was developed as a practical demonstration of:
 - NumPy numerical operations
 - Pandas data analysis
 - Matplotlib visualization
-- Streamlit computer vision
-- OpenCV video processing
-- NumPy numerical operations
-- Pandas data analysis
-- Matplotlib visualization
 - Streamlit application development
-- GitHub version control
-- Cloud application development
-- GitHub version control
+- Git version control
+- GitHub project management
 - Cloud deployment
+
+## Disclaimer
+
+TrafficFlowCV is an educational and portfolio project.
+
+It is not intended to replace professional traffic-monitoring systems or provide legally verified traffic-count data.
